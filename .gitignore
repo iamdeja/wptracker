@@ -1,0 +1,10 @@
+# VS solutions
+*.sln
+
+# VS Debug folder
+Debug/
+
+# VS User and Project files
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
