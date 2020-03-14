@@ -1,4 +1,4 @@
-#include <windows.h>
+#include <Windows.h>
 #include <tlhelp32.h>
 #include <tchar.h>
 #include <stdlib.h>
@@ -7,17 +7,121 @@
 #include <string.h>
 
 #define SUCCESS 0
-#define MEMFL 1 // memory allocation failed
+#define MEMFL 1	// memory allocation failed
 #define SNAPFL 2 // snapshot capturing failed
 #define SRCHFL 3 // search failed
 int err_code = SUCCESS;
 
-int validateInput(TCHAR*, int*);
-int PrintModules(DWORD);
+#define NT_SUCCESS(x) ((x) >= 0)
+#define STATUS_INFO_LENGTH_MISMATCH 0xc0000004
 
-int main(void) {
+#define SystemHandleInformation 16
+#define ObjectBasicInformation 0
+#define ObjectNameInformation 1
+#define ObjectTypeInformation 2
+
+int validateInput(TCHAR *, int *);
+int PrintModules(DWORD);
+int retrieveHandleCount(HANDLE);
+
+typedef NTSTATUS(NTAPI *_NtQuerySystemInformation)(
+		ULONG SystemInformationClass,
+		PVOID SystemInformation,
+		ULONG SystemInformationLength,
+		PULONG ReturnLength);
+
+typedef NTSTATUS(NTAPI *_NtDuplicateObject)(
+		HANDLE SourceProcessHandle,
+		HANDLE SourceHandle,
+		HANDLE TargetProcessHandle,
+		PHANDLE TargetHandle,
+		ACCESS_MASK DesiredAccess,
+		ULONG Attributes,
+		ULONG Options);
+
+typedef NTSTATUS(NTAPI *_NtQueryObject)(
+		HANDLE ObjectHandle,
+		ULONG ObjectInformationClass,
+		PVOID ObjectInformation,
+		ULONG ObjectInformationLength,
+		PULONG ReturnLength);
+
+typedef struct _UNICODE_STRING
+{
+	USHORT Length;
+	USHORT MaximumLength;
+	PWSTR Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
+
+typedef struct _SYSTEM_HANDLE
+{
+	ULONG ProcessId;
+	BYTE ObjectTypeNumber;
+	BYTE Flags;
+	USHORT Handle;
+	PVOID Object;
+	ACCESS_MASK GrantedAccess;
+} SYSTEM_HANDLE, *PSYSTEM_HANDLE;
+
+typedef struct _SYSTEM_HANDLE_INFORMATION
+{
+	ULONG HandleCount;
+	SYSTEM_HANDLE Handles[1];
+} SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
+
+typedef enum _POOL_TYPE
+{
+	NonPagedPool,
+	PagedPool,
+	NonPagedPoolMustSucceed,
+	DontUseThisType,
+	NonPagedPoolCacheAligned,
+	PagedPoolCacheAligned,
+	NonPagedPoolCacheAlignedMustS
+} POOL_TYPE,
+		*PPOOL_TYPE;
+
+typedef struct _OBJECT_TYPE_INFORMATION
+{
+	UNICODE_STRING Name;
+	ULONG TotalNumberOfObjects;
+	ULONG TotalNumberOfHandles;
+	ULONG TotalPagedPoolUsage;
+	ULONG TotalNonPagedPoolUsage;
+	ULONG TotalNamePoolUsage;
+	ULONG TotalHandleTableUsage;
+	ULONG HighWaterNumberOfObjects;
+	ULONG HighWaterNumberOfHandles;
+	ULONG HighWaterPagedPoolUsage;
+	ULONG HighWaterNonPagedPoolUsage;
+	ULONG HighWaterNamePoolUsage;
+	ULONG HighWaterHandleTableUsage;
+	ULONG InvalidAttributes;
+	GENERIC_MAPPING GenericMapping;
+	ULONG ValidAccess;
+	BOOLEAN SecurityRequired;
+	BOOLEAN MaintainHandleCount;
+	USHORT MaintainTypeList;
+	POOL_TYPE PoolType;
+	ULONG PagedPoolUsage;
+	ULONG NonPagedPoolUsage;
+} OBJECT_TYPE_INFORMATION, *POBJECT_TYPE_INFORMATION;
+
+PVOID GetLibraryProcAddress(LPCSTR LibraryName, LPCSTR ProcName)
+{
+	HMODULE LibHandle = GetModuleHandleA(LibraryName);
+	if (!LibHandle)
+	{
+		printf("Error getting library.");
+		exit(SRCHFL);
+	}
+	return GetProcAddress(LibHandle, ProcName);
+}
+
+int main(void)
+{
 	// Initialise Buffer to get file path + name
-	TCHAR* buffer = (TCHAR*)malloc(MAX_PATH * sizeof(TCHAR));
+	TCHAR *buffer = (TCHAR *)malloc(MAX_PATH * sizeof(TCHAR));
 	if (!buffer || !*buffer)
 	{
 		printf("Something went wrong. Are you nearing your RAM limit?");
@@ -37,7 +141,7 @@ int main(void) {
 	}
 
 	// Get the name of the file
-	TCHAR* pStrStart = _tcsrchr(buffer, '\\') + 1;
+	TCHAR *pStrStart = _tcsrchr(buffer, '\\') + 1;
 	if (!pStrStart)
 	{
 		printf("Something went wrong. Filename retrieval failed.");
@@ -45,7 +149,7 @@ int main(void) {
 	}
 
 	// Copy the name of the file into a dedicated variable
-	TCHAR* pFileName = (TCHAR*)malloc(fNameLen * sizeof(TCHAR) + 1);
+	TCHAR *pFileName = (TCHAR *)malloc(fNameLen * sizeof(TCHAR) + 1);
 	if (pFileName == NULL)
 	{
 		printf("Something went wrong. Are you nearing your RAM limit?");
@@ -66,7 +170,7 @@ int main(void) {
 	if (hProcessSnap == INVALID_HANDLE_VALUE)
 	{
 		printf("Something went wrong. There was an error in capturing system porcesses.");
-		return(SNAPFL);
+		return (SNAPFL);
 	}
 
 	// Define the process entries
@@ -83,46 +187,44 @@ int main(void) {
 		return SNAPFL;
 	}
 
-	int pid = 0;
-	_tprintf(TEXT("%s\n"), pFileName);
-
+	DWORD pid = 0;
 	// Cycle through Process List
-	do {
+	do
+	{
 		// Get the appropriate Process PID
-		if (_tcsicmp(pe32.szExeFile, pFileName) == 0) {
+		if (_tcsicmp(pe32.szExeFile, pFileName) == 0)
+		{
 			pid = pe32.th32ProcessID;
-			printf("Yep");
+			break;
 		}
 	} while (Process32Next(hProcessSnap, &pe32));
 	// Clean the snapshot object to prevent resource leakage
 	CloseHandle(hProcessSnap);
 
-	if (pid != 0) {
-		_tprintf(TEXT("The process ID of process %s is %d"), pFileName, pid);
-	}
-	else {
+	if (!pid)
+	{
 		_tprintf(TEXT("Process '%s' not found. Exiting..."), pFileName);
+		return SRCHFL;
 	}
 
-	//DWORD aProcesses[1024];
-	//DWORD cbNeeded;
-	//DWORD cProcesses;
-	//unsigned int i;
+	_tprintf(TEXT("List of all modules used by %s (PID %u):\n"), pFileName, pid);
+	PrintModules(pid);
 
-	//// Get the list of process identifiers
+	// Retrieve the count of handles used by the process
+	int handleCount = retrieveHandleCount(OpenProcess(PROCESS_QUERY_INFORMATION |
+																												PROCESS_VM_READ,
+																										FALSE, pid));
+	if (!handleCount)
+		return err_code;
+	printf("The number of handles used is: %d.", handleCount);
 
-	//if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded))
-	//	return 1;
-
-	//// Calculate the number of returned process identifiers
-	//cProcesses = cbNeeded / sizeof(DWORD);
-
-	//// Print the names of the modules for each process
-	//printf("Process Name Process ID\n");
-	//for (i = 0; i < cProcesses; i++)
-	//{
-	//	PrintModules(aProcesses[i]);
-	//}
+	// NT function imports
+	_NtQuerySystemInformation NtQuerySystemInformation =
+			(_NtQuerySystemInformation)GetLibraryProcAddress("ntdll.dll", "NtQuerySystemInformation");
+	_NtDuplicateObject NtDuplicateObject =
+			(_NtDuplicateObject)GetLibraryProcAddress("ntdll.dll", "NtDuplicateObject");
+	_NtQueryObject NtQueryObject =
+			(_NtQueryObject)GetLibraryProcAddress("ntdll.dll", "NtQueryObject");
 
 	// Stop halt
 	//while ('\n' != getchar());
@@ -134,7 +236,7 @@ int main(void) {
 }
 
 // Validates if the input contains a path and extension
-int validateInput(TCHAR* input, int* len)
+int validateInput(TCHAR *input, int *len)
 {
 	int dotExists = 0;
 	int indexSlash = 0;
@@ -161,13 +263,10 @@ int PrintModules(DWORD processID)
 	DWORD cbNeeded;
 	unsigned int i;
 
-	// Print the process identifier
-	printf("\nProcess ID: %u\n", processID);
-
 	// Get a handle to the process
 	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION |
-		PROCESS_VM_READ,
-		FALSE, processID);
+														 PROCESS_VM_READ,
+												 FALSE, processID);
 
 	if (NULL == hProcess)
 		return 1;
@@ -192,4 +291,16 @@ int PrintModules(DWORD processID)
 	CloseHandle(hProcess);
 
 	return 0;
+}
+
+int retrieveHandleCount(HANDLE hProcess)
+{
+	PDWORD count = (PDWORD)malloc(sizeof(PDWORD));
+	if (!count)
+	{
+		err_code = MEMFL;
+		return 0;
+	}
+	BOOL opStatus = GetProcessHandleCount(hProcess, count);
+	return opStatus ? *count : 0;
 }
