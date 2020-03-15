@@ -244,14 +244,6 @@ void queryHandles(DWORD processID)
 			continue;
 		}
 
-		// Break on pipe handles
-		if (GetFileType(handle.Handle) == FILE_TYPE_PIPE)
-		{
-			free(handleInfo);
-			CloseHandle(processHandle);
-			return;
-		}
-
 		// Duplicate the handle to allow for querying
 		if (!DuplicateHandle(
 			processHandle,
@@ -262,6 +254,15 @@ void queryHandles(DWORD processID)
 			0,
 			0
 		)) continue;
+
+		// Break on pipe handles
+		if (GetFileType(dupHandle) == FILE_TYPE_PIPE)
+		{
+			CloseHandle(dupHandle);
+			free(handleInfo);
+			CloseHandle(processHandle);
+			return;
+		}
 
 		objectTypeInfo = (POBJECT_TYPE_INFORMATION)malloc(0x1000);
 
@@ -309,6 +310,7 @@ void queryHandles(DWORD processID)
 			if (!tempNameInfo)
 			{
 				free(objectTypeInfo);
+				CloseHandle(dupHandle);
 				free(handleInfo);
 				CloseHandle(processHandle);
 				printf("Memory allocation failed.");
