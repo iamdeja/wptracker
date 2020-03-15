@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "extern.h"
+
 // Display process modules
 int PrintModules(DWORD processID)
 {
@@ -96,4 +97,24 @@ void printProcessName(DWORD processID)
 	}
 
 	CloseHandle(hProcess);
+}
+
+// Validates if the input contains a path and extension
+int validateInput(TCHAR* input, int* len)
+{
+	int dotExists = 0;
+	int indexSlash = 0;
+	for (int i = _tcslen(input); i > 0; --i)
+	{
+		if (input[i] == '.')
+			dotExists = 1;
+		else if (input[i] == '\\')
+			indexSlash = i + dotExists;
+		if (indexSlash && dotExists)
+		{
+			*len = _tcslen(input) - indexSlash;
+			return 1; // input valid: bool true
+		}
+	}
+	return 0; // input invalid: bool false
 }

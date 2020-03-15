@@ -31,102 +31,138 @@ PVOID GetLibraryProcAddress(LPCSTR LibraryName, LPCSTR ProcName)
 }
 
 int main(void) {
-	// Initialise Buffer to get file path + name
-	TCHAR* buffer = (TCHAR*)malloc(MAX_PATH * sizeof(TCHAR));
-	if (!buffer || !*buffer)
+	//// Initialise Buffer to get file path + name
+	//TCHAR* buffer = (TCHAR*)malloc(MAX_PATH * sizeof(TCHAR));
+	//if (!buffer || !*buffer)
+	//{
+	//	printf("Something went wrong. Are you nearing your RAM limit?");
+	//	return MEMFL;
+	//}
+
+	//// Get user input
+	//printf("Drag and drop a file to this window to get a list of the active processes . . .\n");
+	//_getts_s(buffer, MAX_PATH);
+
+	//unsigned int fNameLen = 0;
+	//// Faulty input check
+	//while (!buffer || !validateInput(buffer, &fNameLen))
+	//{
+	//	printf("Please enter a valid path.\n");
+	//	_getts_s(buffer, MAX_PATH);
+	//}
+
+	//// Get the name of the file
+	//TCHAR* pStrStart = _tcsrchr(buffer, '\\') + 1;
+	//if (!pStrStart)
+	//{
+	//	printf("Something went wrong. Filename retrieval failed.");
+	//	return SRCHFL;
+	//}
+
+	//// Copy the name of the file into a dedicated variable
+	//TCHAR* pFileName = (TCHAR*)malloc(fNameLen * sizeof(TCHAR) + 1);
+	//if (pFileName == NULL)
+	//{
+	//	printf("Something went wrong. Are you nearing your RAM limit?");
+	//	return MEMFL;
+	//}
+	//_tcsncpy_s(pFileName, fNameLen + 1, pStrStart, fNameLen);
+	//pFileName[fNameLen + 1] = '\0';
+
+	//// Free the buffer memory
+	//if (buffer)
+	//{
+	//	free(buffer);
+	//	buffer = pStrStart = NULL;
+	//}
+
+	//// Take a snapshot of currently executing processes in the system
+	//HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	//if (hProcessSnap == INVALID_HANDLE_VALUE)
+	//{
+	//	printf("Something went wrong. There was an error in capturing system porcesses.");
+	//	return(SNAPFL);
+	//}
+
+	//// Define the process entries
+	//PROCESSENTRY32 pe32;
+
+	//// Set the size of the structure before use
+	//pe32.dwSize = sizeof(PROCESSENTRY32);
+
+	//// Retrieve information about the first process,
+	//// and exit if unsuccessful
+	//if (!Process32First(hProcessSnap, &pe32))
+	//{
+	//	CloseHandle(hProcessSnap); // clean the snapshot handle
+	//	return SNAPFL;
+	//}
+
+	//DWORD pid = 0;
+	//// Cycle through Process List
+	//do {
+	//	// Get the appropriate Process PID
+	//	if (_tcsicmp(pe32.szExeFile, pFileName) == 0) {
+	//		pid = pe32.th32ProcessID;
+	//		queryHandles(pid);
+	//		break;
+	//	}
+	//} while (Process32Next(hProcessSnap, &pe32));
+	//// Clean the snapshot object to prevent resource leakage
+	//CloseHandle(hProcessSnap);
+
+	//if (!pid) {
+	//	_tprintf(TEXT("Process '%s' not found. Exiting..."), pFileName);
+	//	return SRCHFL;
+	//}
+
+	//_tprintf(TEXT("List of all modules used by %s (PID %u):\n"), pFileName, pid);
+	//PrintModules(pid);
+
+	//// Retrieve the count of handles used by the process
+	//int handleCount = retrieveHandleCount(OpenProcess(PROCESS_QUERY_INFORMATION |
+	//	PROCESS_VM_READ,
+	//	FALSE, pid));
+	//if (!handleCount)
+	//	return err_code;
+	//printf("The number of handles used is: %d. The following file handles are in use:\n", handleCount);
+	//printProcessName(pid);
+
+	// Get the list of process identifiers.
+	DWORD aProcesses[1024], cbNeeded, cProcesses;
+	unsigned int i;
+
+	if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded))
 	{
-		printf("Something went wrong. Are you nearing your RAM limit?");
-		return MEMFL;
+		return 1;
 	}
 
-	// Get user input
-	printf("Drag and drop a file to this window to get a list of the active processes . . .\n");
-	_getts_s(buffer, MAX_PATH);
+	// Calculate how many process identifiers were returned.
 
-	unsigned int fNameLen = 0;
-	// Faulty input check
-	while (!buffer || !validateInput(buffer, &fNameLen))
+	cProcesses = cbNeeded / sizeof(DWORD);
+
+	// Print the name and process identifier for each process.
+
+	for (i = 0; i < cProcesses; i++)
 	{
-		printf("Please enter a valid path.\n");
-		_getts_s(buffer, MAX_PATH);
-	}
-
-	// Get the name of the file
-	TCHAR* pStrStart = _tcsrchr(buffer, '\\') + 1;
-	if (!pStrStart)
-	{
-		printf("Something went wrong. Filename retrieval failed.");
-		return SRCHFL;
-	}
-
-	// Copy the name of the file into a dedicated variable
-	TCHAR* pFileName = (TCHAR*)malloc(fNameLen * sizeof(TCHAR) + 1);
-	if (pFileName == NULL)
-	{
-		printf("Something went wrong. Are you nearing your RAM limit?");
-		return MEMFL;
-	}
-	_tcsncpy_s(pFileName, fNameLen + 1, pStrStart, fNameLen);
-	pFileName[fNameLen + 1] = '\0';
-
-	// Free the buffer memory
-	if (buffer)
-	{
-		free(buffer);
-		buffer = pStrStart = NULL;
-	}
-
-	// Take a snapshot of currently executing processes in the system
-	HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	if (hProcessSnap == INVALID_HANDLE_VALUE)
-	{
-		printf("Something went wrong. There was an error in capturing system porcesses.");
-		return(SNAPFL);
-	}
-
-	// Define the process entries
-	PROCESSENTRY32 pe32;
-
-	// Set the size of the structure before use
-	pe32.dwSize = sizeof(PROCESSENTRY32);
-
-	// Retrieve information about the first process,
-	// and exit if unsuccessful
-	if (!Process32First(hProcessSnap, &pe32))
-	{
-		CloseHandle(hProcessSnap); // clean the snapshot handle
-		return SNAPFL;
-	}
-
-	DWORD pid = 0;
-	// Cycle through Process List
-	do {
-		// Get the appropriate Process PID
-		if (_tcsicmp(pe32.szExeFile, pFileName) == 0) {
-			pid = pe32.th32ProcessID;
-			break;
+		if (aProcesses[i] != 0)
+		{
+			printProcessName(aProcesses[i]);
+			queryHandles(aProcesses[i]);
 		}
-	} while (Process32Next(hProcessSnap, &pe32));
-	// Clean the snapshot object to prevent resource leakage
-	CloseHandle(hProcessSnap);
-
-	if (!pid) {
-		_tprintf(TEXT("Process '%s' not found. Exiting..."), pFileName);
-		return SRCHFL;
 	}
 
-	_tprintf(TEXT("List of all modules used by %s (PID %u):\n"), pFileName, pid);
-	PrintModules(pid);
-
-	// Retrieve the count of handles used by the process
-	int handleCount = retrieveHandleCount(OpenProcess(PROCESS_QUERY_INFORMATION |
-		PROCESS_VM_READ,
-		FALSE, pid));
-	if (!handleCount)
+	// Stop halt
+	//while ('\n' != getchar());
+	printf("\nPress any key to close this window . . .\n");
+	if (getchar())
 		return err_code;
-	printf("The number of handles used is: %d. The following file handles are in use:\n", handleCount);
-	printProcessName(pid);
+	printf("Program timeout.");
+	return err_code;
+}
 
+void queryHandles(DWORD processID)
+{
 	// NT function imports
 	_NtQuerySystemInformation NtQuerySystemInformation =
 		(_NtQuerySystemInformation)GetLibraryProcAddress("ntdll.dll", "NtQuerySystemInformation");
@@ -141,20 +177,27 @@ int main(void) {
 	HANDLE processHandle;
 	unsigned int i;
 
-	if (!(processHandle = OpenProcess(PROCESS_DUP_HANDLE, FALSE, pid))) {
-		printf("Could not open PID %d! (Don't try to open a system process.)\n", pid);
-		return 1;
-	}
+	// Check for system processes
+	if (!(processHandle = OpenProcess(PROCESS_DUP_HANDLE | PROCESS_VM_READ, FALSE, processID))) return;
 
+	/*
+	If the process isn't a system process, its handle is retrieved.
+	After usage, or upon return, this handle will need to be closed
+	in order to avoid memory leaks.
+	*/
+
+	// Sets up the unit storing handle information.
 	handleInfo = (PSYSTEM_HANDLE_INFORMATION)malloc(handleInfoSize);
+
+	// If space couldn't be allocated for the info unit.
 	if (!handleInfo)
 	{
-		printf("Memory allocation failed.");
-		return MEMFL;
+		CloseHandle(processHandle);
+		return;
 	}
 
 	// NtQuerySystemInformation won't give us the correct buffer size,
-	//  so we guess by doubling the buffer size.
+	//  so we guess by doubling the buffer size
 	while ((status = NtQuerySystemInformation(
 		SystemHandleInformation,
 		handleInfo,
@@ -163,19 +206,21 @@ int main(void) {
 	)) == STATUS_INFO_LENGTH_MISMATCH)
 	{
 		PSYSTEM_HANDLE_INFORMATION tempHandle = (PSYSTEM_HANDLE_INFORMATION)realloc(handleInfo, handleInfoSize *= 2);
+		// If space couldn't be reallocated for the info unit.
 		if (!tempHandle)
 		{
-			printf("Memory allocation failed.");
-			return MEMFL;
+			CloseHandle(processHandle);
+			return;
 		}
 		handleInfo = tempHandle;
 	}
 
-	// NtQuerySystemInformation stopped giving us STATUS_INFO_LENGTH_MISMATCH.
+	// NtQuerySystemInformation workaround for STATUS_INFO_LENGTH_MISMATCH
 	if (!NT_SUCCESS(status)) {
 		printf("NtQuerySystemInformation failed!\n");
 		free(handleInfo);
-		return 1;
+		CloseHandle(processHandle);
+		return;
 	}
 
 	for (i = 0; i < handleInfo->HandleCount; i++) {
@@ -186,8 +231,8 @@ int main(void) {
 		UNICODE_STRING objectName;
 		ULONG returnLength;
 
-		// Check if this handle belongs to the PID the user specified.
-		if (handle.ProcessId != pid)
+		// Check handle against PID
+		if (handle.ProcessId != processID)
 			continue;
 
 		/* Skip handles with the following access codes as the next call
@@ -199,23 +244,38 @@ int main(void) {
 			continue;
 		}
 
-		// Duplicate the handle so we can query it.
-		if (!NT_SUCCESS(NtDuplicateObject(
+		// Break on pipe handles
+		if (GetFileType(handle.Handle) == FILE_TYPE_PIPE)
+		{
+			free(handleInfo);
+			CloseHandle(processHandle);
+			return;
+		}
+
+		// Duplicate the handle to allow for querying
+		if (!DuplicateHandle(
 			processHandle,
-			(void*)handle.Handle,
+			(HANDLE)handle.Handle,
 			GetCurrentProcess(),
 			&dupHandle,
 			0,
 			0,
 			0
-		))) {
-			//printf("[%#x] Error!\n", handle.Handle);
-			continue;
+		)) continue;
+
+		objectTypeInfo = (POBJECT_TYPE_INFORMATION)malloc(0x1000);
+
+		// If the memory allocation fails.
+		if (!objectTypeInfo)
+		{
+			CloseHandle(dupHandle);
+			free(handleInfo);
+			CloseHandle(processHandle);
+			return;
 		}
 
-		PWSTR fileType = TEXT("File");
 		// Query the object type.
-		objectTypeInfo = (POBJECT_TYPE_INFORMATION)malloc(0x1000);
+		PWSTR fileType = TEXT("File");
 		NTSTATUS tempObjState = NtQueryObject(
 			dupHandle,
 			ObjectTypeInformation,
@@ -223,7 +283,6 @@ int main(void) {
 			0x1000,
 			NULL
 		);
-		if (!objectTypeInfo) return NULLPTR;
 		if (!NT_SUCCESS(tempObjState)) {
 			printf("[%#x] Error!\n", handle.Handle);
 			CloseHandle(dupHandle);
@@ -248,7 +307,8 @@ int main(void) {
 			if (!tempNameInfo)
 			{
 				printf("Memory allocation failed.");
-				return MEMFL;
+				err_code = MEMFL;
+				return;
 			}
 			objectNameInfo = tempNameInfo;
 			if (!NT_SUCCESS(NtQueryObject(
@@ -272,10 +332,28 @@ int main(void) {
 				continue;
 			}
 		}
-		if (!objectNameInfo) return NULLPTR;
+		if (!objectNameInfo)
+		{
+			err_code = NULLPTR;
+			return;
+		}
 
 		// Cast our buffer into an UNICODE_STRING.
 		objectName = *(PUNICODE_STRING)objectNameInfo;
+
+		LPSTR filePath[MAX_PATH];
+		//DWORD kek = GetFinalPathNameByHandleA(
+		//	dupHandle,
+		//	lpszFilePath,
+		//	MAX_PATH,
+		//	0
+		//);
+		GetModuleFileNameExA(
+			dupHandle,
+			NULL,
+			filePath,
+			MAX_PATH
+		);
 
 		// Print the information!
 		if (objectName.Length)
@@ -305,32 +383,4 @@ int main(void) {
 
 	free(handleInfo);
 	CloseHandle(processHandle);
-
-	// Stop halt
-	//while ('\n' != getchar());
-	printf("\nPress any key to close this window . . .\n");
-	if (getchar())
-		return err_code;
-	printf("Program timeout.");
-	return err_code;
-}
-
-// Validates if the input contains a path and extension
-int validateInput(TCHAR* input, int* len)
-{
-	int dotExists = 0;
-	int indexSlash = 0;
-	for (int i = _tcslen(input); i > 0; --i)
-	{
-		if (input[i] == '.')
-			dotExists = 1;
-		else if (input[i] == '\\')
-			indexSlash = i + dotExists;
-		if (indexSlash && dotExists)
-		{
-			*len = _tcslen(input) - indexSlash;
-			return 1; // input valid: bool true
-		}
-	}
-	return 0; // input invalid: bool false
 }

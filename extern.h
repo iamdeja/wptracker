@@ -102,3 +102,4 @@ int validateInput(TCHAR*, int*);
 int PrintModules(DWORD);
 int retrieveHandleCount(HANDLE);
 void printProcessName(DWORD);
+void queryHandles(DWORD);
