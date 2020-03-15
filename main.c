@@ -285,11 +285,13 @@ void queryHandles(DWORD processID)
 		);
 		if (!NT_SUCCESS(tempObjState)) {
 			printf("[%#x] Error!\n", handle.Handle);
+			free(objectTypeInfo);
 			CloseHandle(dupHandle);
 			continue;
 		}
 		else if (_tcsicmp(objectTypeInfo->Name.Buffer, fileType) != 0)
 		{
+			free(objectTypeInfo);
 			CloseHandle(dupHandle);
 			continue;
 		}
@@ -306,6 +308,9 @@ void queryHandles(DWORD processID)
 			PVOID tempNameInfo = realloc(objectNameInfo, returnLength);
 			if (!tempNameInfo)
 			{
+				free(objectTypeInfo);
+				free(handleInfo);
+				CloseHandle(processHandle);
 				printf("Memory allocation failed.");
 				err_code = MEMFL;
 				return;
@@ -334,6 +339,11 @@ void queryHandles(DWORD processID)
 		}
 		if (!objectNameInfo)
 		{
+			free(objectTypeInfo);
+			free(objectNameInfo);
+			CloseHandle(dupHandle);
+			free(handleInfo);
+			CloseHandle(processHandle);
 			err_code = NULLPTR;
 			return;
 		}
