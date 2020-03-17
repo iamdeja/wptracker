@@ -98,8 +98,20 @@ typedef struct _OBJECT_TYPE_INFORMATION
 	ULONG NonPagedPoolUsage;
 } OBJECT_TYPE_INFORMATION, * POBJECT_TYPE_INFORMATION;
 
+#ifndef NT_SUCCESS
+#define NT_SUCCESS(x) ((x) >= 0)
+#endif
+#define STATUS_INFO_LENGTH_MISMATCH 0xc0000004
+
+#define SystemHandleInformation 16
+#define ObjectBasicInformation 0
+#define ObjectNameInformation 1
+#define ObjectTypeInformation 2
+
+PVOID GetLibraryProcAddress(LPCSTR, LPCSTR);
 int validateInput(TCHAR*, int*);
 int PrintModules(DWORD);
 int retrieveHandleCount(HANDLE);
 void printProcessName(DWORD);
 void queryHandles(DWORD);
+void iterateOverHandles(HANDLE, PSYSTEM_HANDLE_INFORMATION, DWORD);
